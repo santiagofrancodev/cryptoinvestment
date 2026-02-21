@@ -8,6 +8,8 @@ use App\Models\Portfolio;
 use App\Models\PriceSnapshot;
 use App\Services\CoinMarketCapService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
  * Serves portfolio crypto data and triggers historical persistence (snapshots).
@@ -28,7 +30,7 @@ class CryptoController extends Controller
      */
     public function index(CoinMarketCapService $cmcService): JsonResponse
     {
-        $portfolios = Portfolio::with('cryptocurrency')->get();
+        $portfolios = Portfolio::with('cryptocurrency')->orderBy('created_at', 'desc')->get();
 
         $cmcIds = $portfolios->pluck('cryptocurrency.cmc_id')
             ->filter()
@@ -83,6 +85,156 @@ class CryptoController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
+        ]);
+    }
+
+    /**
+     * Search cryptocurrencies by name or symbol.
+     *
+     * This method only touches local database state; it does not call CoinMarketCap.
+     * It is used by the frontend search box to let users add assets to their portfolio.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+
+        if ($q === '') {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+                'message' => 'Empty query.',
+            ]);
+        }
+
+        $results = Cryptocurrency::query()
+            ->where(function ($query) use ($q) {
+                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+                $query->where('name', 'LIKE', $like)
+                    ->orWhere('symbol', 'LIKE', $like);
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get([
+                'id',
+                'cmc_id',
+                'name',
+                'symbol',
+                'slug',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $results,
+        ]);
+    }
+
+    /**
+     * Add a cryptocurrency to the portfolio (idempotent).
+     *
+     * The controller validates the input and ensures we do not create duplicate
+     * portfolio rows for the same cryptocurrency.
+     */
+    public function storePortfolio(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cryptocurrency_id' => ['required', 'integer', 'exists:cryptocurrencies,id'],
+        ]);
+
+        $portfolio = Portfolio::firstOrCreate([
+            'cryptocurrency_id' => $validated['cryptocurrency_id'],
+        ]);
+
+        $portfolio->load('cryptocurrency');
+
+        return response()->json([
+            'success' => true,
+            'data' => $portfolio,
+            'message' => 'Cryptocurrency added to portfolio.',
+        ], 201);
+    }
+
+    /**
+     * Remove a cryptocurrency from the portfolio by portfolio entry id.
+     */
+    public function destroyPortfolio(int $id): JsonResponse
+    {
+        $portfolio = Portfolio::find($id);
+        if (! $portfolio) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Portfolio entry not found.',
+            ], 404);
+        }
+        $portfolio->delete();
+        return response()->json([
+            'success' => true,
+            'data' => null,
+            'message' => 'Removed from portfolio.',
+        ]);
+    }
+
+    /**
+     * Return historical price snapshots for a cryptocurrency identified by cmc_id.
+     *
+     * The Snapshot Pattern stores one row per polling interval; this endpoint exposes
+     * that local history so the frontend can render time-series charts. We filter by
+     * recorded_at using optional from/to parameters, defaulting to the last 24 hours.
+     */
+    public function history(int $cmcId, Request $request): JsonResponse
+    {
+        $crypto = Cryptocurrency::where('cmc_id', $cmcId)->first();
+        if (! $crypto) {
+            return response()->json([
+                'success' => false,
+                'data' => [],
+                'message' => 'Cryptocurrency not found for given CoinMarketCap ID.',
+            ], 404);
+        }
+
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+
+        $from = isset($validated['from'])
+            ? Carbon::parse($validated['from'])
+            : now()->subDay();
+
+        $to = isset($validated['to'])
+            ? Carbon::parse($validated['to'])
+            : now();
+
+        if ($from->greaterThan($to)) {
+            [$from, $to] = [$to->copy()->subDay(), $from];
+        }
+
+        $snapshots = PriceSnapshot::query()
+            ->where('cryptocurrency_id', $crypto->id)
+            ->whereBetween('recorded_at', [$from, $to])
+            ->orderBy('recorded_at')
+            ->get([
+                'id',
+                'cryptocurrency_id',
+                'price_usd',
+                'percent_change_24h',
+                'volume_24h',
+                'market_cap',
+                'recorded_at',
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cryptocurrency' => [
+                    'id' => $crypto->id,
+                    'cmc_id' => $crypto->cmc_id,
+                    'name' => $crypto->name,
+                    'symbol' => $crypto->symbol,
+                    'slug' => $crypto->slug,
+                ],
+                'snapshots' => $snapshots,
+            ],
         ]);
     }
 

@@ -85,4 +85,55 @@ class CoinMarketCapService
 
         return $body;
     }
+
+    /**
+     * Fetch top cryptocurrencies from the listings/latest endpoint.
+     *
+     * Used by the FetchGlobalCryptos command to populate the cryptocurrencies
+     * table so the frontend search can find coins by name or symbol (e.g. PAX, LTC).
+     * Not cached so that running the command always gets fresh data.
+     *
+     * @param  int  $limit  Number of results (1–5000). Default 100 for top 100.
+     * @return array{data: array<int, array{id: int, name: string, symbol: string, slug: string}>}
+     *
+     * @throws \RuntimeException When the API request fails or returns invalid response.
+     */
+    public function getListingsLatest(int $limit = 100): array
+    {
+        $baseUrl = config('services.coinmarketcap.base_url');
+        $apiKey = config('services.coinmarketcap.key');
+
+        if (empty($apiKey)) {
+            Log::error('CoinMarketCap API key is not configured.');
+            throw new \RuntimeException('CoinMarketCap API is not configured.');
+        }
+
+        $url = $baseUrl . 'cryptocurrency/listings/latest';
+        $response = Http::withHeaders([
+            'X-CMC_PRO_API_KEY' => $apiKey,
+            'Accept' => 'application/json',
+        ])->get($url, [
+            'start' => 1,
+            'limit' => max(1, min(5000, $limit)),
+        ]);
+
+        if ($response->failed()) {
+            Log::warning('CoinMarketCap listings API request failed.', [
+                'url' => $url,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \RuntimeException(
+                'CoinMarketCap API error: ' . $response->status() . ' – ' . $response->body()
+            );
+        }
+
+        $body = $response->json();
+        if (! is_array($body) || ! isset($body['data'])) {
+            Log::warning('CoinMarketCap API returned unexpected response.', ['body' => $body]);
+            throw new \RuntimeException('CoinMarketCap API returned invalid response.');
+        }
+
+        return $body;
+    }
 }
