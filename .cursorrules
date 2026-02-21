@@ -1,0 +1,178 @@
+# CryptoInvestment - Cursor Rules
+# Prueba Técnica IGNIWEB SAS
+
+## Perfil del Asistente
+Eres un desarrollador Senior PHP/Laravel. Estás construyendo una prueba técnica
+para IGNIWEB SAS. El código debe ser limpio, profesional y cada decisión debe
+estar justificada. Prioriza claridad sobre complejidad.
+
+## Contexto y Decisiones de Arquitectura Clave
+
+### El Problema del Historial (DECISIÓN CRÍTICA)
+La API gratuita de CoinMarketCap NO provee datos históricos ("No historical data").
+No se pudo hacer upgrade al plan de pago. Por lo tanto:
+
+**SOLUCIÓN IMPLEMENTADA: Motor de Persistencia Propio (Snapshot Pattern)**
+- En cada polling del frontend (cada 60s), el servidor guarda un registro en `price_snapshots`
+- Esto construye un historial propio en nuestra DB local con el tiempo
+- Permite cumplir el requerimiento de "verificación de líneas de tiempo" sin API de pago
+- El eje X del gráfico Chart.js usa el campo `recorded_at` de esta tabla
+
+Esta decisión DEBE reflejarse en los comentarios del código cuando sea relevante.
+
+### Por qué Laravel actúa como Proxy (DECISIÓN CRÍTICA)
+1. CoinMarketCap bloquea peticiones directas del browser (política CORS)
+2. La API key nunca debe aparecer en código frontend (seguridad)
+3. Permite interceptar la respuesta, guardar el snapshot y luego enviar al cliente
+4. Centraliza el manejo de rate limiting (30 req/min en plan gratuito)
+
+NUNCA generar código que llame a CoinMarketCap desde JavaScript del cliente.
+
+## Stack Tecnológico
+- Backend:     PHP 8.x + Laravel 11
+- Frontend:    Blade (una sola vista) + Alpine.js + Vanilla JS (Fetch API)
+- Estilos:     Tailwind CSS via CDN
+- Gráficos:    Chart.js via CDN
+- Base datos:  MySQL + Eloquent ORM
+- API externa: CoinMarketCap REST API v1 (plan gratuito)
+- Cache:       Laravel Cache driver (file) para rate limiting
+
+## Arquitectura: MVC + Service Pattern
+
+### Responsabilidades estrictas
+- Service:     ÚNICA clase que habla con CoinMarketCap. Maneja key, headers, errores HTTP
+- Controller:  Recibe request → llama al Service → guarda snapshot → retorna JSON
+- Model:       Solo relaciones Eloquent y scopes de consulta. Cero lógica de negocio
+- Blade view:  Una sola vista (app.blade.php). Todo el dinamismo via Alpine.js + fetch()
+
+### Lo que NO se implementa (y por qué, para documentar)
+- Repository Pattern: fuera del scope, mencionado en ANALISIS.md como decisión
+  consciente de evitar sobre-ingeniería para el tiempo disponible (5 horas)
+- Autenticación: fuera del scope de la prueba
+- Livewire / Inertia: agregan complejidad innecesaria para este objetivo
+- jQuery: innecesario con Alpine.js y Fetch API nativa
+
+## Estructura de Archivos
+```
+app/
+├── Http/Controllers/
+│   ├── CryptoController.php       # Búsqueda y cotizaciones en tiempo real
+│   └── PortfolioController.php    # CRUD del portafolio
+├── Models/
+│   ├── Cryptocurrency.php         # Info estática: name, symbol, cmc_id
+│   ├── Portfolio.php              # Cryptos que el usuario quiere seguir
+│   └── PriceSnapshot.php         # Corazón del historial propio
+└── Services/
+    └── CoinMarketCapService.php   # Único punto de contacto con API externa
+
+resources/views/
+└── app.blade.php                  # Single Page — toda la UI aquí, sin recarga
+
+routes/
+├── web.php                        # GET / → app.blade.php
+└── api.php                        # Todos los endpoints JSON
+
+database/migrations/
+├── create_cryptocurrencies_table.php
+├── create_portfolios_table.php
+└── create_price_snapshots_table.php
+```
+
+## Esquema de Base de Datos
+
+### cryptocurrencies
+- id (bigint PK)
+- cmc_id (int, unique)       — ID interno de CoinMarketCap, para queries exactas
+- name (string)              — ej: "Bitcoin"
+- symbol (string)            — ej: "BTC"
+- slug (string)              — ej: "bitcoin"
+- timestamps
+
+### portfolios
+- id (bigint PK)
+- cryptocurrency_id (FK → cryptocurrencies.id)
+- timestamps
+
+### price_snapshots  ← CORAZÓN DEL HISTORIAL
+- id (bigint PK)
+- cryptocurrency_id (FK → cryptocurrencies.id)
+- price_usd (decimal 18,8)
+- percent_change_24h (decimal 8,4)
+- volume_24h (decimal 20,2)
+- market_cap (decimal 20,2)
+- recorded_at (timestamp)    — eje X del gráfico Chart.js, indexado
+- timestamps
+
+## Endpoints API Internos
+
+| Método | Ruta                         | Acción                                         |
+|--------|------------------------------|------------------------------------------------|
+| GET    | /api/crypto/search           | Buscar cryptos para agregar al portafolio      |
+| GET    | /api/portfolio               | Listar cryptos del portafolio con último precio|
+| POST   | /api/portfolio               | Agregar crypto al portafolio                   |
+| DELETE | /api/portfolio/{symbol}      | Quitar crypto del portafolio                   |
+| GET    | /api/crypto/quotes           | Cotizaciones actuales + guarda snapshot        |
+| GET    | /api/history/{symbol}        | Snapshots filtrados por ?from= y ?to=          |
+
+Todas las respuestas JSON siguen esta estructura:
+{
+  "success": true|false,
+  "data": {...} | [...],
+  "message": "string opcional"
+}
+
+## Flujo de Datos (Single Page)
+
+1. CARGA INICIAL
+   Browser → GET / → Laravel sirve app.blade.php con portafolio desde DB
+
+2. POLLING AUTOMÁTICO (cada 60 segundos)
+   JS setInterval → fetch('/api/crypto/quotes')
+   → CryptoController llama CoinMarketCapService
+   → Service llama CoinMarketCap API
+   → Controller guarda PriceSnapshot en DB  ← aquí se construye el historial
+   → Controller retorna JSON al browser
+   → Alpine.js actualiza tabla y Chart.js sin recargar
+
+3. VISUALIZACIÓN DE HISTORIAL
+   Usuario selecciona crypto + rango de fechas
+   → fetch('/api/history/{symbol}?from=&to=')
+   → Controller consulta price_snapshots filtrado por recorded_at
+   → Chart.js renderiza línea de tiempo con recorded_at en eje X
+
+## Reglas de Código
+
+### PHP / Laravel
+1. Comentarios en inglés técnico
+2. PascalCase para clases, camelCase para métodos/variables, snake_case para tablas/columnas
+3. Try/catch en todo método del Service que llame a la API externa
+4. Si la API falla o devuelve 429, retornar el último snapshot de la DB como fallback
+5. Usar config('services.coinmarketcap.key') — nunca env() directo fuera de config/
+6. Validar inputs en Controllers antes de pasarlos al Service
+
+### Rate Limiting (plan gratuito = 30 req/min)
+- setInterval del frontend: mínimo 60000ms (60 segundos)
+- Cachear última respuesta válida por 55 segundos (Laravel Cache)
+- Si llega request y hay cache vigente, retornar cache sin llamar a la API
+- En error 429: retornar último registro de price_snapshots con flag "cached: true"
+
+### JavaScript / Alpine.js
+1. Sin jQuery, sin frameworks pesados
+2. URLs de API como constantes al inicio del script, nunca hardcodeadas inline
+3. Indicador visual "Actualizando..." durante cada fetch (no bloquear la UI)
+4. Errores de fetch: mostrar mensaje en el DOM, nunca usar alert()
+5. Chart.js: destruir instancia anterior antes de crear nueva (evita memory leaks)
+6. El eje X del gráfico usa recorded_at formateado, no índices numéricos
+
+### Git
+- Rama principal: main (solo merges de features completos)
+- Ramas de desarrollo: feature/backend-api, feature/frontend-ui, feature/charts
+- Formato de commits: "feat: descripción" / "fix: descripción" / "docs: descripción"
+- Nunca commitear .env — verificar que está en .gitignore antes de cada push
+
+## Prioridades ante conflictos
+1. API key nunca expuesta al cliente
+2. Single Page sin recargas (requerimiento explícito del cliente)
+3. Historial funcional via snapshots (solución al límite del plan gratuito)
+4. Código legible y comentado (criterio de evaluación de la prueba)
+5. Responsive en mobile, tablet y desktop
