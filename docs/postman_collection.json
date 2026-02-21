@@ -1,0 +1,160 @@
+{
+	"info": {
+		"_postman_id": "cryptoinvestment-api",
+		"name": "CryptoInvestment API",
+		"description": "Endpoints de la API del proyecto CryptoInvestment (Search, Portfolio, History, Data). Validados siguiendo los requerimientos del reto.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000"
+		}
+	],
+	"item": [
+		{
+			"name": "Data",
+			"item": [
+				{
+					"name": "GET Portfolio Data (quotes)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/crypto/data",
+							"host": ["{{base_url}}"],
+							"path": ["api", "crypto", "data"]
+						},
+						"description": "Devuelve las criptomonedas del portafolio con cotizaciones actuales. Persiste snapshots para historial. Respuesta: success, data (array de items con portfolio_id, cmc_id, name, symbol, price_usd, percent_change_24h, volume_24h, market_cap)."
+					}
+				}
+			]
+		},
+		{
+			"name": "Search",
+			"item": [
+				{
+					"name": "GET Search cryptocurrencies",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/crypto/search?q=btc",
+							"host": ["{{base_url}}"],
+							"path": ["api", "crypto", "search"],
+							"query": [
+								{
+									"key": "q",
+									"value": "btc",
+									"description": "Nombre o símbolo a buscar"
+								}
+							]
+						},
+						"description": "Busca criptomonedas por nombre o símbolo. Respuesta: success, data (array de { id, cmc_id, name, symbol, slug })."
+					}
+				}
+			]
+		},
+		{
+			"name": "Portfolio",
+			"item": [
+				{
+					"name": "POST Add to portfolio",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cryptocurrency_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/portfolio",
+							"host": ["{{base_url}}"],
+							"path": ["api", "portfolio"]
+						},
+						"description": "Añade una criptomoneda al portafolio. Body: cryptocurrency_id (integer, existe en cryptocurrencies). Respuesta 201: success, data (portfolio con cryptocurrency), message."
+					}
+				},
+				{
+					"name": "DELETE Remove from portfolio",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/portfolio/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "portfolio", "1"],
+							"variable": [
+								{
+									"key": "id",
+									"value": "1",
+									"description": "ID del registro en portfolios (portfolio.id)"
+								}
+							]
+						},
+						"description": "Elimina una entrada del portafolio por su ID. Respuesta: success, data (null), message."
+					}
+				}
+			]
+		},
+		{
+			"name": "History",
+			"item": [
+				{
+					"name": "GET Price history by cmc_id",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/crypto/history/1?from=2025-02-20&to=2025-02-21",
+							"host": ["{{base_url}}"],
+							"path": ["api", "crypto", "history", "1"],
+							"query": [
+								{
+									"key": "from",
+									"value": "2025-02-20",
+									"description": "Fecha inicio (Y-m-d)"
+								},
+								{
+									"key": "to",
+									"value": "2025-02-21",
+									"description": "Fecha fin (Y-m-d)"
+								}
+							]
+						},
+						"description": "Historial de snapshots de precios para una crypto por cmc_id. Parámetros opcionales: from, to (fechas). Por defecto últimas 24h. Respuesta: success, data: { cryptocurrency, snapshots }."
+					}
+				}
+			]
+		}
+	]
+}

@@ -53,7 +53,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 | Capa | Tecnología |
 |------|------------|
 | Backend | PHP 8.x + Laravel 11 |
-| Frontend | Blade (una sola vista) + Alpine.js + Vanilla JS (Fetch API) |
+| Frontend | Blade (una sola vista) + Vanilla JS (Fetch API) |
 | Estilos | Tailwind CSS vía CDN |
 | Gráficos | Chart.js vía CDN |
 | Base de datos | MySQL + Eloquent ORM |
@@ -71,14 +71,14 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 | **Service** | Única clase que habla con CoinMarketCap. Maneja key, headers y errores HTTP. |
 | **Controller** | Recibe request → llama al Service → guarda snapshot → retorna JSON. |
 | **Model** | Solo relaciones Eloquent y scopes de consulta. Sin lógica de negocio. |
-| **Blade** | Una sola vista (`app.blade.php`). Todo el dinamismo vía Alpine.js + `fetch()`. |
+| **Blade** | Una sola vista. Todo el dinamismo vía Vanilla JS y `fetch()`. |
 
 ### Lo que NO se implementa (y por qué)
 
 - **Repository Pattern**: Fuera del alcance; decisión consciente para evitar sobre-ingeniería en el tiempo disponible (5 h).
 - **Autenticación**: Fuera del alcance de la prueba.
 - **Livewire / Inertia**: Añaden complejidad innecesaria para el objetivo.
-- **jQuery**: Innecesario con Alpine.js y Fetch API nativa.
+- **jQuery**: Innecesario con Vanilla JS y Fetch API nativa.
 
 ---
 
@@ -152,11 +152,10 @@ database/migrations/
 | Método | Ruta | Acción |
 |--------|------|--------|
 | GET | /api/crypto/search | Buscar cryptos para agregar al portafolio |
-| GET | /api/portfolio | Listar cryptos del portafolio con último precio |
 | POST | /api/portfolio | Agregar crypto al portafolio |
-| DELETE | /api/portfolio/{symbol} | Quitar crypto del portafolio |
-| GET | /api/crypto/quotes | Cotizaciones actuales + guardar snapshot |
-| GET | /api/history/{symbol} | Snapshots filtrados por `?from=` y `?to=` |
+| DELETE | /api/portfolio/{id} | Quitar crypto del portafolio (por portfolio.id) |
+| GET | /api/crypto/data | Cotizaciones del portafolio + guardar snapshot |
+| GET | /api/crypto/history/{cmc_id} | Snapshots filtrados por `?from=` y `?to=` |
 
 Todas las respuestas JSON siguen:
 
@@ -176,15 +175,15 @@ Todas las respuestas JSON siguen:
    Navegador → GET `/` → Laravel sirve `app.blade.php` con datos del portafolio desde DB.
 
 2. **Polling automático (cada 60 s)**  
-   - JS `setInterval` → `fetch('/api/crypto/quotes')`  
+   - JS `setInterval` → `fetch('/api/crypto/data')`  
    - CryptoController llama a CoinMarketCapService → Service llama a CoinMarketCap API  
    - Controller guarda `PriceSnapshot` en DB (aquí se construye el historial)  
    - Controller retorna JSON al navegador  
-   - Alpine.js actualiza tabla y Chart.js sin recargar  
+   - Vanilla JS actualiza tabla y Chart.js sin recargar  
 
 3. **Visualización de historial**  
    - Usuario elige crypto + rango de fechas  
-   - `fetch('/api/history/{symbol}?from=&to=')`  
+   - `fetch('/api/crypto/history/{cmc_id}?from=&to=')`  
    - Controller consulta `price_snapshots` filtrado por `recorded_at`  
    - Chart.js renderiza línea de tiempo con `recorded_at` en el eje X  
 
@@ -208,9 +207,9 @@ Todas las respuestas JSON siguen:
 - Si llega un request y hay cache vigente: retornar cache sin llamar a la API.
 - En error 429: retornar último registro de `price_snapshots` con flag `"cached": true`.
 
-### JavaScript / Alpine.js
+### JavaScript (Vanilla JS)
 
-- Sin jQuery ni frameworks pesados.
+- Sin jQuery ni frameworks pesados (Alpine.js, React, etc.).
 - URLs de API como constantes al inicio del script, no hardcodeadas inline.
 - Indicador visual "Actualizando..." durante cada fetch (sin bloquear la UI).
 - Errores de fetch: mostrar mensaje en el DOM; no usar `alert()`.
@@ -259,6 +258,6 @@ Con este análisis se puede iniciar la **Tarea 1** del proyecto con el siguiente
    - `CryptoController` y `PortfolioController` delegando en el Service y persistiendo snapshots donde corresponda.  
 
 6. **Vista y frontend**  
-   - Una sola vista `app.blade.php` con Alpine.js, Tailwind y Chart.js; polling 60 s; constantes de API; manejo de errores en DOM.  
+   - Una sola vista con Vanilla JS, Tailwind CSS y Chart.js; polling 60 s; constantes de API; manejo de errores en DOM.  
 
 Este documento (`ANALISIS.md`) es la referencia para mantener coherencia con las decisiones de arquitectura durante toda la implementación.
