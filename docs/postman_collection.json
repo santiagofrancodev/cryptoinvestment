@@ -135,23 +135,48 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/crypto/history/1?from=2025-02-20&to=2025-02-21",
+							"raw": "{{base_url}}/api/crypto/history/1?range=7d",
 							"host": ["{{base_url}}"],
 							"path": ["api", "crypto", "history", "1"],
 							"query": [
 								{
-									"key": "from",
-									"value": "2025-02-20",
-									"description": "Fecha inicio (Y-m-d)"
-								},
-								{
-									"key": "to",
-									"value": "2025-02-21",
-									"description": "Fecha fin (Y-m-d)"
+									"key": "range",
+									"value": "7d",
+									"description": "Rango: 24h, 7d, 30d, 1y (datos vía CoinMarketCap v2 historical API)"
 								}
 							]
 						},
-						"description": "Historial de snapshots de precios para una crypto por cmc_id. Parámetros opcionales: from, to (fechas). Por defecto últimas 24h. Respuesta: success, data: { cryptocurrency, snapshots }."
+						"description": "Historial de precios desde CoinMarketCap /v2/cryptocurrency/quotes/historical. Parámetro range: 24h, 7d, 30d, 1y. Respuesta: success, data: { cryptocurrency, snapshots, labels, chart_data } listos para Chart.js."
+					}
+				},
+				{
+					"name": "GET History bulk (comparar portafolio)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/crypto/history-bulk?ids=1,1027,5426&range=7d",
+							"host": ["{{base_url}}"],
+							"path": ["api", "crypto", "history-bulk"],
+							"query": [
+								{
+									"key": "ids",
+									"value": "1,1027,5426",
+									"description": "IDs CMC separados por coma (ej. 1=BTC, 1027=ETH)"
+								},
+								{
+									"key": "range",
+									"value": "7d",
+									"description": "24h, 7d, 30d, 1y"
+								}
+							]
+						},
+						"description": "Historial de varias monedas para gráfica de rendimiento consolidado. Respuesta: success, data: { \"1\": { symbol, name, snapshots }, \"1027\": { ... } }."
 					}
 				}
 			]

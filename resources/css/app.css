@@ -6,6 +6,281 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-dark-bg: #0f172a;
+    --color-dark-card: #1e293b;
+}
+
+/* App-specific: crypto dashboard */
+body {
+    background-color: var(--color-dark-bg);
+    font-family: var(--font-sans);
+}
+#table-body tr {
+    transition: opacity 0.25s ease, background-color 0.2s ease;
+}
+#table-body tr.row-removing {
+    opacity: 0;
+    transform: scale(0.98);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#table-body tr.row-sorted {
+    animation: rowHighlight 0.4s ease;
+}
+@keyframes rowHighlight {
+    from { background-color: rgba(34, 197, 94, 0.08); }
+    to { background-color: transparent; }
+}
+.sortable-th {
+    cursor: pointer;
+    user-select: none;
+}
+.sortable-th:hover {
+    color: rgb(203, 213, 225);
+}
+#hero-cards::-webkit-scrollbar {
+    height: 6px;
+}
+#hero-cards::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 3px;
+}
+#hero-cards::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.6);
+    border-radius: 3px;
+}
+#hero-cards::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.7);
+}
+@supports (scrollbar-width: thin) {
+    #hero-cards {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, 0.6) rgba(30, 41, 59, 0.5);
+    }
+}
+#chart-modal.backdrop-blur {
+    backdrop-filter: blur(4px);
+}
+
+/* Contenedor flex vertical estricto cuando está visible: sin scroll, altura exacta del viewport */
+#chart-modal:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+#chart-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+#chart-modal .modal-header,
+#chart-modal .range-buttons {
+    flex-shrink: 0;
+}
+#chart-modal .chart-container {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* Orientación horizontal: layout compacto para que la gráfica use ~80% del alto */
+@media (orientation: landscape) {
+    #chart-modal .modal-body {
+        padding: 0.5rem !important;
+        overflow: hidden !important;
+    }
+    #chart-modal #chart-modal-subtitle {
+        display: none;
+    }
+    #chart-modal .modal-header #chart-modal-title {
+        display: none;
+    }
+    #chart-modal .modal-header {
+        margin-bottom: 0;
+        min-height: 0;
+    }
+    #chart-modal .modal-close-btn {
+        position: absolute !important;
+        top: 0.5rem;
+        right: 0.5rem;
+        margin: 0;
+    }
+    #chart-modal .chart-container {
+        min-height: 80vh !important;
+    }
+    #chart-modal .range-buttons {
+        transform: scale(0.8);
+        transform-origin: left center;
+        margin-top: 0;
+        margin-bottom: 0.25rem !important;
+    }
+}
+
+/* Ocultar controles al capturar para PDF (html2pdf) */
+body.report-capture .no-print,
+body.report-capture #add-crypto-btn,
+body.report-capture #search-panel,
+body.report-capture .chart-range-btn,
+body.report-capture #report-btn,
+body.report-capture #compare-portfolio-btn,
+body.report-capture .table-delete-btn {
+    display: none !important;
+}
+body.report-capture #report-content table thead th:last-child,
+body.report-capture #report-content table tbody td:last-child {
+    display: none !important;
+}
+
+/* Exportación digital premium: informe dark mode (tabla + gráfica consolidada) */
+.dashboard-export {
+    background-color: #0f172a !important;
+    color: #e2e8f0;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    padding: 24px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+.dashboard-export .report-export-header {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+}
+.dashboard-export .report-export-header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 4px 0;
+}
+.dashboard-export .report-export-header .report-sync {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+.dashboard-export .report-export-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    background: rgba(30, 41, 59, 0.5);
+}
+.dashboard-export .report-export-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: rgba(15, 23, 42, 0.8);
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.dashboard-export .report-export-table td {
+    padding: 10px 12px;
+    border-top: 1px solid rgba(71, 85, 105, 0.3);
+    color: #e2e8f0;
+}
+.dashboard-export .report-export-table .col-precio,
+.dashboard-export .report-export-table .col-cap { text-align: right; }
+.dashboard-export .report-export-table .col-cambio { text-align: right; }
+.dashboard-export .report-export-table .positive { color: #34d399; }
+.dashboard-export .report-export-table .negative { color: #f87171; }
+.dashboard-export .report-chart-block {
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    background: rgba(30, 41, 59, 0.4);
+}
+.dashboard-export .report-chart-block h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0 0 8px 0;
+}
+.dashboard-export .report-chart-block img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Print: informe visual para socios */
+@media print {
+    body {
+        background: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    .no-print,
+    #add-crypto-btn,
+    #search-panel,
+    .chart-range-btn,
+    .modal-range-btn,
+    #report-btn,
+    #compare-portfolio-btn,
+    .table-delete-btn,
+    #chart-modal {
+        display: none !important;
+    }
+    #report-content {
+        max-width: 100%;
+        padding: 0;
+    }
+    #chart-section {
+        display: block !important;
+        visibility: visible !important;
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        box-shadow: none;
+        break-inside: avoid;
+    }
+    #chart-section .relative {
+        break-inside: avoid;
+    }
+    section[aria-label="Tabla de cotizaciones"],
+    #chart-section {
+        page-break-inside: avoid;
+    }
+    .print-report-page {
+        page-break-inside: avoid;
+    }
+    #report-content section[aria-label="Tabla de cotizaciones"] {
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        box-shadow: none;
+    }
+    #report-content table {
+        color: #0f172a;
+    }
+    #report-content table thead th:last-child,
+    #report-content table tbody td:last-child {
+        display: none !important;
+    }
+    #report-content thead {
+        background: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    #report-content tbody tr {
+        border-color: #e2e8f0;
+    }
+    #report-content .text-slate-400,
+    #report-content .text-slate-100,
+    #report-content .text-slate-200 {
+        color: #334155;
+    }
+    #priceChart {
+        max-height: 280px;
+    }
+    footer {
+        margin-top: 1rem;
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #64748b;
+    }
 }

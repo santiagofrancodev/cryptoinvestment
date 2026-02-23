@@ -9,7 +9,6 @@ use App\Models\PriceSnapshot;
 use App\Services\CoinMarketCapService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 
 /**
  * Serves portfolio crypto data and triggers historical persistence (snapshots).
@@ -175,13 +174,12 @@ class CryptoController extends Controller
     }
 
     /**
-     * Return historical price snapshots for a cryptocurrency identified by cmc_id.
+     * Return historical price data for a cryptocurrency.
      *
-     * The Snapshot Pattern stores one row per polling interval; this endpoint exposes
-     * that local history so the frontend can render time-series charts. We filter by
-     * recorded_at using optional from/to parameters, defaulting to the last 24 hours.
+     * Tries CoinMarketCap v2 API first. On failure (e.g. free tier, 402/403), falls back
+     * to local price_snapshots so the chart still works.
      */
-    public function history(int $cmcId, Request $request): JsonResponse
+    public function history(int $cmcId, Request $request, CoinMarketCapService $cmcService): JsonResponse
     {
         $crypto = Cryptocurrency::where('cmc_id', $cmcId)->first();
         if (! $crypto) {
@@ -193,35 +191,15 @@ class CryptoController extends Controller
         }
 
         $validated = $request->validate([
-            'from' => ['nullable', 'date'],
-            'to' => ['nullable', 'date'],
+            'range' => ['nullable', 'string', 'in:7d,30d,1y,24h'],
         ]);
+        $range = $validated['range'] ?? '7d';
 
-        $from = isset($validated['from'])
-            ? Carbon::parse($validated['from'])
-            : now()->subDay();
-
-        $to = isset($validated['to'])
-            ? Carbon::parse($validated['to'])
-            : now();
-
-        if ($from->greaterThan($to)) {
-            [$from, $to] = [$to->copy()->subDay(), $from];
+        try {
+            $result = $cmcService->getHistory($crypto->cmc_id, $range);
+        } catch (\Throwable $e) {
+            $result = $this->getHistoryFromSnapshots($crypto, $range);
         }
-
-        $snapshots = PriceSnapshot::query()
-            ->where('cryptocurrency_id', $crypto->id)
-            ->whereBetween('recorded_at', [$from, $to])
-            ->orderBy('recorded_at')
-            ->get([
-                'id',
-                'cryptocurrency_id',
-                'price_usd',
-                'percent_change_24h',
-                'volume_24h',
-                'market_cap',
-                'recorded_at',
-            ]);
 
         return response()->json([
             'success' => true,
@@ -233,9 +211,100 @@ class CryptoController extends Controller
                     'symbol' => $crypto->symbol,
                     'slug' => $crypto->slug,
                 ],
-                'snapshots' => $snapshots,
+                'snapshots' => $result['snapshots'],
+                'labels' => $result['labels'],
+                'chart_data' => $result['data'],
             ],
         ]);
+    }
+
+    /**
+     * Return historical data for multiple cryptocurrencies at once (bulk).
+     * Used for the "Comparar Todo el Portafolio" chart: one series per coin.
+     *
+     * GET /api/crypto/history-bulk?ids=1,1027,5426&range=7d
+     * Response: { "1": { "symbol": "BTC", "name": "Bitcoin", "snapshots": [...] }, ... }
+     */
+    public function historyBulk(Request $request, CoinMarketCapService $cmcService): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'string', 'regex:/^[\d,]+$/'],
+            'range' => ['nullable', 'string', 'in:7d,30d,1y,24h'],
+        ]);
+        $range = $validated['range'] ?? '7d';
+        $cmcIds = array_values(array_unique(array_filter(array_map('intval', explode(',', $validated['ids'])))));
+
+        if (empty($cmcIds)) {
+            return response()->json([
+                'success' => true,
+                'data' => (object) [],
+                'message' => 'No valid IDs provided.',
+            ]);
+        }
+
+        $result = [];
+        foreach ($cmcIds as $cmcId) {
+            $crypto = Cryptocurrency::where('cmc_id', $cmcId)->first();
+            if (! $crypto) {
+                continue;
+            }
+            try {
+                $history = $cmcService->getHistory($crypto->cmc_id, $range);
+            } catch (\Throwable $e) {
+                $history = $this->getHistoryFromSnapshots($crypto, $range);
+            }
+            $result[(string) $cmcId] = [
+                'symbol' => $crypto->symbol,
+                'name' => $crypto->name,
+                'snapshots' => $history['snapshots'],
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Fallback: load history from local price_snapshots when CMC v2 API is unavailable.
+     *
+     * @return array{snapshots: array, labels: array, data: array}
+     */
+    private function getHistoryFromSnapshots(Cryptocurrency $crypto, string $range): array
+    {
+        $to = now();
+        $from = match (strtolower($range)) {
+            '1y' => $to->copy()->subYear(),
+            '30d' => $to->copy()->subDays(30),
+            '24h' => $to->copy()->subDay(),
+            default => $to->copy()->subDays(7),
+        };
+
+        $snapshots = PriceSnapshot::query()
+            ->where('cryptocurrency_id', $crypto->id)
+            ->whereBetween('recorded_at', [$from, $to])
+            ->orderBy('recorded_at')
+            ->get(['recorded_at', 'price_usd']);
+
+        $list = [];
+        $labels = [];
+        foreach ($snapshots as $s) {
+            $at = $s->recorded_at instanceof \DateTimeInterface
+                ? $s->recorded_at->format('c')
+                : (string) $s->recorded_at;
+            $list[] = [
+                'recorded_at' => $at,
+                'price_usd' => (float) $s->price_usd,
+            ];
+            $labels[] = $at;
+        }
+
+        return [
+            'snapshots' => $list,
+            'labels' => $labels,
+            'data' => array_column($list, 'price_usd'),
+        ];
     }
 
     /**
