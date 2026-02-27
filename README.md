@@ -1,3 +1,6 @@
+## 💎UPDATE: Se ha incorporado una suite de pruebas automatizadas y plan de validación técnica según los requisitos del reto.
+
+
 # CryptoInvestment
 
 Aplicación web **single page** para seguir un portafolio de criptomonedas: cotizaciones en tiempo (casi) real, historial de precios con gráficos y búsqueda de activos. Backend en Laravel; frontend con Blade, Vanilla JS, Tailwind CSS y Chart.js. API de CoinMarketCap como fuente de datos (proxy desde el servidor por CORS y seguridad).
