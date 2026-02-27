@@ -3,7 +3,7 @@
 
 # CryptoInvestment
 
-Aplicación web **single page** para seguir un portafolio de criptomonedas: cotizaciones en tiempo (casi) real, historial de precios con gráficos y búsqueda de activos. Backend en Laravel; frontend con Blade, Vanilla JS, Tailwind CSS y Chart.js. API de CoinMarketCap como fuente de datos (proxy desde el servidor por CORS y seguridad).
+Aplicación web **single page** para seguir un portafolio de criptomonedas: cotizaciones en tiempo (casi) real, historial de precios con gráficos y búsqueda de activos. Backend en Laravel; frontend con Blade, Vanilla JS, Tailwind CSS y Chart.js. **API de CoinMarketCap** (v1 cotizaciones; v2 historial con plan de pago) como fuente de datos; motor **híbrido** que usa CMC v2 cuando está disponible y fallback a snapshots locales.
 
 **Endpoints validados inicialmente con Postman siguiendo los requerimientos del reto.** Colección disponible en `docs/postman_collection.json`.
 
@@ -137,8 +137,8 @@ Se trabaja en ramas de feature y se hace merge a `main` cuando la funcionalidad 
 | GET | `/api/crypto/search?q=` | Búsqueda de criptomonedas por nombre o símbolo |
 | POST | `/api/portfolio` | Añadir crypto al portafolio (body: `cryptocurrency_id`) |
 | DELETE | `/api/portfolio/{id}` | Quitar del portafolio por ID de entrada |
-| GET | `/api/crypto/history/{cmc_id}?from=&to=` | Historial de precios (snapshots) por rango de fechas |
-| GET | `/api/crypto/history-bulk?ids=&from=&to=` | Historial bulk para comparar varias monedas |
+| GET | `/api/crypto/history/{cmc_id}?range=` | Historial: CMC v2 (plan pago) o fallback a snapshots locales |
+| GET | `/api/crypto/history-bulk?ids=&range=` | Historial múltiple para comparar; misma lógica híbrida |
 
 Todas las respuestas JSON siguen: `success`, `data`, `message` (opcional).  
 Para probar los endpoints se puede importar la colección Postman en `docs/postman_collection.json`.

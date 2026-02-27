@@ -8,17 +8,16 @@ estar justificada. Prioriza claridad sobre complejidad.
 
 ## Contexto y Decisiones de Arquitectura Clave
 
-### El Problema del Historial (DECISIÓN CRÍTICA)
-La API gratuita de CoinMarketCap NO provee datos históricos ("No historical data").
-No se pudo hacer upgrade al plan de pago. Por lo tanto:
+### Historial de Precios: Motor Híbrido (DECISIÓN CRÍTICA)
+Inicialmente se usó la API gratuita de CoinMarketCap, que NO provee datos históricos.
+Luego se migró al plan de pago, cuya API v2 SÍ entrega historial. Se definió un sistema híbrido:
 
-**SOLUCIÓN IMPLEMENTADA: Motor de Persistencia Propio (Snapshot Pattern)**
-- En cada polling del frontend (cada 60s), el servidor guarda un registro en `price_snapshots`
-- Esto construye un historial propio en nuestra DB local con el tiempo
-- Permite cumplir el requerimiento de "verificación de líneas de tiempo" sin API de pago
-- El eje X del gráfico Chart.js usa el campo `recorded_at` de esta tabla
+**FUENTE PRIMARIA:** CMC v2 API (/v2/cryptocurrency/quotes/historical) — plan de pago
+**FUENTE FALLBACK:** tabla `price_snapshots` — historial local construido por polling
 
-Esta decisión DEBE reflejarse en los comentarios del código cuando sea relevante.
+**Comportamiento:** Intentar CMC v2 primero; si falla (402, 403, red, plan gratuito), usar snapshots.
+En cada polling se sigue guardando en `price_snapshots` para garantizar fallback y compatibilidad.
+El eje X del gráfico usa `recorded_at` en ambos casos.
 
 ### Por qué Laravel actúa como Proxy (DECISIÓN CRÍTICA)
 1. CoinMarketCap bloquea peticiones directas del browser (política CORS)
@@ -34,7 +33,7 @@ NUNCA generar código que llame a CoinMarketCap desde JavaScript del cliente.
 - Estilos:     Tailwind CSS via CDN
 - Gráficos:    Chart.js via CDN
 - Base datos:  MySQL + Eloquent ORM
-- API externa: CoinMarketCap REST API v1 (plan gratuito)
+- API externa: CoinMarketCap v1 (cotizaciones) + v2 (historial, plan pago); fallback a snapshots
 - Cache:       Laravel Cache driver (file) para rate limiting
 
 ## Arquitectura: MVC + Service Pattern
@@ -112,7 +111,8 @@ database/migrations/
 | POST   | /api/portfolio               | Agregar crypto al portafolio                   |
 | DELETE | /api/portfolio/{symbol}      | Quitar crypto del portafolio                   |
 | GET    | /api/crypto/quotes           | Cotizaciones actuales + guarda snapshot        |
-| GET    | /api/history/{symbol}        | Snapshots filtrados por ?from= y ?to=          |
+| GET    | /api/crypto/history/{cmc_id} | Historial: CMC v2 o fallback price_snapshots (?range=) |
+| GET    | /api/crypto/history-bulk     | Historial múltiple; misma lógica híbrida       |
 
 Todas las respuestas JSON siguen esta estructura:
 {
@@ -135,9 +135,9 @@ Todas las respuestas JSON siguen esta estructura:
    → Alpine.js actualiza tabla y Chart.js sin recargar
 
 3. VISUALIZACIÓN DE HISTORIAL
-   Usuario selecciona crypto + rango de fechas
-   → fetch('/api/history/{symbol}?from=&to=')
-   → Controller consulta price_snapshots filtrado por recorded_at
+   Usuario selecciona crypto + rango (24h, 7d, 30d, 1y)
+   → fetch('/api/crypto/history/{cmc_id}?range=7d')
+   → Controller intenta CMC v2; si falla, usa price_snapshots
    → Chart.js renderiza línea de tiempo con recorded_at en eje X
 
 ## Reglas de Código
@@ -173,6 +173,6 @@ Todas las respuestas JSON siguen esta estructura:
 ## Prioridades ante conflictos
 1. API key nunca expuesta al cliente
 2. Single Page sin recargas (requerimiento explícito del cliente)
-3. Historial funcional via snapshots (solución al límite del plan gratuito)
+3. Historial funcional via motor híbrido (CMC v2 + fallback snapshots locales)
 4. Código legible y comentado (criterio de evaluación de la prueba)
 5. Responsive en mobile, tablet y desktop

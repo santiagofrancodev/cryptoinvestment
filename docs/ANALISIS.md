@@ -34,7 +34,7 @@ Identificados a partir del enunciado del reto:
 | Id | Requisito | Origen |
 |----|-----------|--------|
 | RNF-01 | **Lenguaje de programación:** PHP (Laravel) en backend; JavaScript en el lado del cliente | Detalles Técnicos |
-| RNF-02 | **API:** CoinMarketCap API utilizando claves API gratuitas | Detalles Técnicos |
+| RNF-02 | **API:** CoinMarketCap API (v1 cotizaciones; v2 historial con plan de pago, o fallback a snapshots locales) | Detalles Técnicos |
 | RNF-03 | **Visualización de gráficos:** Utilizar una biblioteca JavaScript como Chart.js | Detalles Técnicos |
 | RNF-04 | **Actualización de datos:** Funcionalidades en JavaScript para solicitudes periódicas y actualización en el cliente | Detalles Técnicos |
 | RNF-05 | **Adaptabilidad en diferentes resoluciones** — la interfaz debe funcionar en desktop, tablet y móvil | Pruebas |
@@ -52,8 +52,9 @@ Consideraciones adicionales derivadas del análisis del párrafo inicial y del c
 | Aspecto | Decisión | Justificación |
 |---------|----------|---------------|
 | **Proxy Laravel** | Laravel actúa como proxy entre el cliente y CoinMarketCap | CORS bloquea peticiones directas desde el navegador; la API key no debe exponerse nunca en el frontend. |
-| **Snapshot Pattern** | Persistir cotizaciones en tabla `price_snapshots` en cada polling | La API gratuita de CMC no provee datos históricos; el historial se construye con el tiempo de forma local. |
-| **Rate limiting y caché** | Cachear respuestas de CMC 55–60 s; respetar ~30 req/min del plan gratuito | Evitar 429 (Too Many Requests); reducir llamadas redundantes. |
+| **Sistema híbrido de historial** | 1. Intentar CMC v2 API (plan de pago, datos históricos). 2. Fallback a `price_snapshots` locales si v2 falla o no está disponible | Inicialmente se usó solo la API gratuita (sin historial). Al migrar al plan de pago, CMC v2 provee historial; los snapshots locales se mantienen como respaldo y para monedas/escenarios sin datos en v2. |
+| **Snapshot Pattern** | En cada polling se guarda un registro en `price_snapshots` | Construye historial propio con el tiempo; sirve como fallback cuando CMC v2 no responde (402, 403, red, plan gratuito). |
+| **Rate limiting y caché** | Cachear respuestas de CMC 55–60 s; respetar límites del plan (≈30 req/min gratuito) | Evitar 429 (Too Many Requests); reducir llamadas redundantes. |
 | **Service Layer** | Una sola clase (`CoinMarketCapService`) como punto de contacto con la API externa | Centralizar key, headers, errores HTTP y fallbacks; no dispersar lógica de CMC en controllers. |
 | **Fallback a snapshots** | Si la API falla o devuelve 429: retornar último snapshot de la DB | Garantizar disponibilidad aunque CMC no responda. |
 | **Navegación adaptativa** | Desktop: gráfico inline; Móvil: gráfico en modal a pantalla completa | Optimizar uso del espacio en pantallas pequeñas; mejorar UX en landscape. |
@@ -77,22 +78,33 @@ Tiempo estimado de desarrollo: **5 horas**. Prioridad: claridad y cumplimiento d
 
 ---
 
-## 5. Restricciones y Problema del Historial (Decisión Crítica)
+## 5. Historial de Precios: Sistema Híbrido (Decisión Crítica)
 
-### Limitación de la API
+### Evolución del proyecto
 
-La **API gratuita de CoinMarketCap no provee datos históricos** ("No historical data"). No se contempla upgrade al plan de pago para esta prueba.
+1. **Fase inicial (API gratuita):** La API gratuita de CoinMarketCap **no provee datos históricos** ("No historical data"). Se implementó el **Snapshot Pattern**: en cada polling se guarda un registro en `price_snapshots` para construir historial propio con el tiempo.
 
-### Solución adoptada: Motor de persistencia propio (Snapshot Pattern)
+2. **Migración a plan de pago:** Se adoptó el plan de pago de CoinMarketCap, cuya **API v2** (`/v2/cryptocurrency/quotes/historical`) **sí entrega historial de precios**.
 
-| Aspecto | Decisión |
-|--------|----------|
-| **Qué** | En cada polling del frontend (cada 60 s), el servidor guarda un registro en la tabla `price_snapshots`. |
-| **Para qué** | Construir un historial propio en base de datos local con el tiempo. |
-| **Resultado** | Cumplir el requerimiento de "verificación de líneas de tiempo" sin depender de una API de pago. |
-| **Gráfico** | El eje X del gráfico Chart.js usa el campo `recorded_at` de `price_snapshots`. |
+3. **Solución híbrida actual:** Se mantienen **ambas fuentes**:
+   - **Fuente primaria:** CMC v2 API (historial oficial, rangos 24h, 7d, 30d, 1y).
+   - **Fuente de fallback:** tabla `price_snapshots` (historial local construido por polling).
 
-Esta decisión debe quedar reflejada en comentarios del código donde sea relevante.
+### Comportamiento del motor híbrido
+
+| Escenario | Fuente utilizada |
+|-----------|-------------------|
+| Plan de pago activo y CMC v2 responde OK | Datos históricos de CMC v2 |
+| CMC v2 falla (402, 403, red, error) | `price_snapshots` locales |
+| Plan gratuito (sin acceso a v2) | `price_snapshots` locales |
+| Moneda recién agregada sin historial en v2 | `price_snapshots` locales (se construye con el tiempo) |
+
+### Snapshot Pattern (persistencia continua)
+
+En **cada** polling del frontend (cada 30–60 s), el servidor sigue guardando un registro en `price_snapshots`:
+- Garantiza fallback si v2 deja de estar disponible.
+- Permite operar con plan gratuito si se revierte.
+- El eje X del gráfico Chart.js usa `recorded_at` en ambos casos.
 
 ---
 
@@ -100,8 +112,9 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 
 1. **CORS**: CoinMarketCap bloquea peticiones directas desde el navegador.
 2. **Seguridad**: La API key no debe aparecer nunca en código frontend.
-3. **Snapshot**: Permite interceptar la respuesta, guardar el snapshot y luego enviar datos al cliente.
-4. **Rate limiting**: Centraliza el manejo del límite del plan gratuito (30 req/min).
+3. **Snapshot**: Permite interceptar la respuesta de cotizaciones, guardar en `price_snapshots` y enviar datos al cliente.
+4. **Motor híbrido**: El backend decide si usar CMC v2 (historial) o snapshots locales; el cliente no conoce la fuente.
+5. **Rate limiting**: Centraliza el manejo de límites (≈30 req/min en plan gratuito).
 
 **Regla**: No generar código que llame a CoinMarketCap desde JavaScript del cliente.
 
@@ -116,7 +129,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 | Estilos | Tailwind CSS vía CDN |
 | Gráficos | Chart.js vía CDN |
 | Base de datos | MySQL + Eloquent ORM |
-| API externa | CoinMarketCap REST API v1 (plan gratuito) |
+| API externa | CoinMarketCap v1 (cotizaciones) + v2 (historial, plan de pago); fallback a snapshots locales |
 | Cache | Laravel Cache driver (file) para rate limiting |
 
 ---
@@ -151,7 +164,7 @@ app/
 ├── Models/
 │   ├── Cryptocurrency.php         # Info estática: name, symbol, cmc_id
 │   ├── Portfolio.php              # Cryptos que el usuario quiere seguir
-│   └── PriceSnapshot.php          # Corazón del historial propio
+│   └── PriceSnapshot.php          # Historial local; fallback cuando CMC v2 no está disponible
 └── Services/
     └── CoinMarketCapService.php   # Único punto de contacto con API externa
 
@@ -191,7 +204,7 @@ database/migrations/
 | cryptocurrency_id | FK → cryptocurrencies.id | |
 | timestamps | | |
 
-### `price_snapshots` (corazón del historial)
+### `price_snapshots` (historial local + fallback del motor híbrido)
 
 | Columna | Tipo | Notas |
 |---------|------|--------|
@@ -214,7 +227,8 @@ database/migrations/
 | POST | /api/portfolio | Agregar crypto al portafolio |
 | DELETE | /api/portfolio/{id} | Quitar crypto del portafolio (por portfolio.id) |
 | GET | /api/crypto/data | Cotizaciones del portafolio + guardar snapshot |
-| GET | /api/crypto/history/{cmc_id} | Snapshots filtrados por `?from=` y `?to=` |
+| GET | /api/crypto/history/{cmc_id} | Historial: intenta CMC v2; si falla, usa `price_snapshots` (`?range=24h,7d,30d,1y`) |
+| GET | /api/crypto/history-bulk | Historial múltiple para gráfico comparativo; misma lógica híbrida |
 
 Todas las respuestas JSON siguen:
 
@@ -241,9 +255,8 @@ Todas las respuestas JSON siguen:
    - Vanilla JS actualiza tabla y Chart.js sin recargar  
 
 3. **Visualización de historial**  
-   - Usuario elige crypto + rango de fechas  
-   - `fetch('/api/crypto/history/{cmc_id}?from=&to=')`  
-   - Controller consulta `price_snapshots` filtrado por `recorded_at`  
+   - Usuario elige crypto + rango de fechas (24h, 7d, 30d, 1y)  
+   - `fetch('/api/crypto/history/{cmc_id}?range=7d')` → Controller intenta CMC v2; si falla, usa `price_snapshots`  
    - Chart.js renderiza línea de tiempo con `recorded_at` en el eje X  
 
 ---
@@ -259,12 +272,13 @@ Todas las respuestas JSON siguen:
 - Usar `config('services.coinmarketcap.key')`; no usar `env()` directo fuera de `config/`.
 - Validar inputs en Controllers antes de pasarlos al Service.
 
-### Rate limiting (plan gratuito ≈ 30 req/min)
+### Rate limiting
 
-- `setInterval` en frontend: mínimo 60 000 ms (60 segundos).
+- `setInterval` en frontend: mínimo 60 000 ms (60 segundos); en producción se usa ~30 s.
 - Cachear última respuesta válida por 55 segundos (Laravel Cache).
 - Si llega un request y hay cache vigente: retornar cache sin llamar a la API.
 - En error 429: retornar último registro de `price_snapshots` con flag `"cached": true`.
+- Plan gratuito ≈ 30 req/min; plan de pago tiene límites más amplios para v2.
 
 ### JavaScript (Vanilla JS)
 
@@ -288,7 +302,7 @@ Todas las respuestas JSON siguen:
 
 1. API key nunca expuesta al cliente.  
 2. Single Page sin recargas (requerimiento explícito).  
-3. Historial funcional vía snapshots (solución al límite del plan gratuito).  
+3. Historial funcional: motor híbrido (CMC v2 + fallback a snapshots locales).  
 4. Código legible y comentado (criterio de evaluación).  
 5. Diseño responsive en móvil, tablet y desktop.
 

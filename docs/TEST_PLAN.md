@@ -35,10 +35,10 @@ Este documento detalla el cumplimiento de las **3 pruebas requeridas** en el ret
 | Caso | Pasos | Resultado esperado |
 |------|-------|--------------------|
 | **Consistencia con CoinMarketCap** | Comparar precio mostrado con [coinmarketcap.com](https://coinmarketcap.com) | Margen de diferencia razonable (≤1–2 min por caché y rate limiting). |
-| **Snapshots en base de datos** | Tras varios ciclos de polling, revisar tabla `price_snapshots` | Se generan registros nuevos (cada 30–60 s según polling y caché). Campos: `price_usd`, `percent_change_24h`, `volume_24h`, `recorded_at`. |
+| **Snapshots en base de datos** | Tras varios ciclos de polling, revisar tabla `price_snapshots` | Se generan registros nuevos (cada 30–60 s). Usados como fallback del motor híbrido cuando CMC v2 no está disponible; también garantizan historial con plan gratuito. Campos: `price_usd`, `percent_change_24h`, `volume_24h`, `recorded_at`. |
 | **Endpoint `/api/crypto/data`** | `GET /api/crypto/data` | Respuesta JSON con `success: true` y array `data` con precios, cambio %, volumen, market cap. |
 
-**Verificación técnica:** El endpoint `/api/crypto/data` retorna la estructura esperada. El `CoinMarketCapService` está configurado en `config/services.php` y es el único punto de contacto con la API externa.
+**Verificación técnica:** El endpoint `/api/crypto/data` retorna la estructura esperada. El `CoinMarketCapService` está configurado en `config/services.php` y es el único punto de contacto con la API externa. El historial usa motor híbrido: CMC v2 (plan pago) o snapshots locales.
 
 ---
 
