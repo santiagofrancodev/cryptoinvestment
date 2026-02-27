@@ -261,3 +261,18 @@ Con este análisis se puede iniciar la **Tarea 1** del proyecto con el siguiente
    - Una sola vista con Vanilla JS, Tailwind CSS y Chart.js; polling 60 s; constantes de API; manejo de errores en DOM.  
 
 Este documento (`ANALISIS.md`) es la referencia para mantener coherencia con las decisiones de arquitectura durante toda la implementación.
+
+---
+
+## 13. Suite de Pruebas (Pruebas del Reto)
+
+Se implementó una **suite de pruebas híbrida** para cumplir con el apartado de "Pruebas" del reto:
+
+1. **Tests automatizados (PHPUnit):**  
+   - `tests/Feature/TechnicalRequirementsTest.php` valida la infraestructura para las 3 pruebas: viewport y clases responsivas, lógica de polling (`setInterval`/`fetchData`), estructura JSON del endpoint `/api/crypto/data` y configuración del `CoinMarketCapService`.  
+   - `tests/Feature/CryptoApiTest.php` valida la estructura de datos retornada por la API.
+
+2. **Plan de pruebas manuales:**  
+   - `docs/TEST_PLAN.md` es una guía paso a paso para que el evaluador valide manualmente la adaptabilidad en distintas resoluciones, la actualización dinámica sin recarga y el trabajo en tiempo real con monedas.
+
+Ejecución: `php artisan test`
