@@ -113,7 +113,7 @@ El formato `.drawio.svg` combina la visualización estándar SVG con los datos e
 - **`TechnicalRequirementsTest`:** 4 tests que validan viewport, clases responsivas, lógica de polling y configuración del API.
 - **`withoutVite()` en TestCase:** Permite ejecutar tests sin compilar assets.
 - **Diagrama:** `docs/ArchitectureDiagram.drawio.svg` (solo este; `.codeviz` y diagramas .drawio de prueba excluidos).
-- **ANALISIS.md:** Sección 13 documentando la estrategia de pruebas.
+- **[Análisis](docs/ANALISIS.md):** Sección 13 documentando la estrategia de pruebas.
 
 ---
 
@@ -146,7 +146,7 @@ Para probar los endpoints se puede importar la colección Postman en `docs/postm
 
 | Documento | Descripción |
 |-----------|-------------|
-| `ANALISIS.md` | Análisis de requisitos, decisiones de arquitectura y reglas de código |
+| [docs/ANALISIS.md](docs/ANALISIS.md) | Análisis de requisitos, decisiones de arquitectura y reglas de código |
 | `docs/TEST_PLAN.md` | Plan de pruebas manuales para las 3 pruebas del reto |
 | `docs/ArchitectureDiagram.drawio.svg` | Diagrama de arquitectura (SVG editable en Draw.io) |
 | `docs/postman_collection.json` | Colección Postman para los endpoints |

@@ -6,7 +6,66 @@ Documento de análisis y decisiones de arquitectura para dar inicio a la **Tarea
 
 ---
 
-## 1. Objetivo del Proyecto
+## 1. Requisitos Funcionales (RF)
+
+Identificados a partir del enunciado del reto:
+
+| Id | Requisito | Origen |
+|----|-----------|--------|
+| RF-01 | Permitir al usuario seguir el rendimiento de un **conjunto personalizado** de criptomonedas a selección | Reto |
+| RF-02 | Mostrar **precios actualizados** de las criptomonedas seleccionadas | Reto |
+| RF-03 | Mostrar **cambios porcentuales** (variación 24h) | Reto |
+| RF-04 | Mostrar **volumen del mercado** | Reto |
+| RF-05 | Proporcionar una **visión consolidada** del historial de precios (vs. hojas de cálculo y sitios dispersos) | Reto |
+| RF-06 | **Persistencia de datos en el tiempo** — los socios la consideran de vital importancia | Reto |
+| RF-07 | Permitir **verificaciones de líneas de tiempo** en un rango de tiempo configurable | Reto |
+| RF-08 | **Visualización desde diferentes dispositivos** (desktop, tablet, móvil) | Reto |
+| RF-09 | Sistema de **una sola hoja** (single page) — sin navegación a otras pantallas | Reto |
+| RF-10 | **Cambios dinámicos sin recarga** de la página | Reto |
+| RF-11 | Implementar lógica para **buscar** criptomonedas | Tareas |
+| RF-12 | Permitir **seleccionar** criptomonedas para agregar al portafolio | Tareas |
+| RF-13 | **Integrar la API de CoinMarketCap** para obtener cotizaciones | Tareas |
+| RF-14 | **Actualización automática** de datos (polling desde el cliente) | Tareas |
+
+---
+
+## 2. Requisitos No Funcionales (RNF)
+
+| Id | Requisito | Origen |
+|----|-----------|--------|
+| RNF-01 | **Lenguaje de programación:** PHP (Laravel) en backend; JavaScript en el lado del cliente | Detalles Técnicos |
+| RNF-02 | **API:** CoinMarketCap API utilizando claves API gratuitas | Detalles Técnicos |
+| RNF-03 | **Visualización de gráficos:** Utilizar una biblioteca JavaScript como Chart.js | Detalles Técnicos |
+| RNF-04 | **Actualización de datos:** Funcionalidades en JavaScript para solicitudes periódicas y actualización en el cliente | Detalles Técnicos |
+| RNF-05 | **Adaptabilidad en diferentes resoluciones** — la interfaz debe funcionar en desktop, tablet y móvil | Pruebas |
+| RNF-06 | **Actualización dinámica según necesidad del cliente** — sin recargas; el usuario controla rangos y vistas | Pruebas |
+| RNF-07 | **Trabajo en tiempo real con monedas** — cotizaciones actualizadas periódicamente | Pruebas |
+| RNF-08 | **Simplicidad** — evitar soluciones muy complejas; prioridad a claridad y cumplimiento | Reto |
+| RNF-09 | **Control de versiones:** Git con rama principal y ramas secundarias; vinculado a GitHub | Tareas |
+
+---
+
+## 3. Otros detalles técnicos (análisis del reto)
+
+Consideraciones adicionales derivadas del análisis del párrafo inicial y del contexto técnico:
+
+| Aspecto | Decisión | Justificación |
+|---------|----------|---------------|
+| **Proxy Laravel** | Laravel actúa como proxy entre el cliente y CoinMarketCap | CORS bloquea peticiones directas desde el navegador; la API key no debe exponerse nunca en el frontend. |
+| **Snapshot Pattern** | Persistir cotizaciones en tabla `price_snapshots` en cada polling | La API gratuita de CMC no provee datos históricos; el historial se construye con el tiempo de forma local. |
+| **Rate limiting y caché** | Cachear respuestas de CMC 55–60 s; respetar ~30 req/min del plan gratuito | Evitar 429 (Too Many Requests); reducir llamadas redundantes. |
+| **Service Layer** | Una sola clase (`CoinMarketCapService`) como punto de contacto con la API externa | Centralizar key, headers, errores HTTP y fallbacks; no dispersar lógica de CMC en controllers. |
+| **Fallback a snapshots** | Si la API falla o devuelve 429: retornar último snapshot de la DB | Garantizar disponibilidad aunque CMC no responda. |
+| **Navegación adaptativa** | Desktop: gráfico inline; Móvil: gráfico en modal a pantalla completa | Optimizar uso del espacio en pantallas pequeñas; mejorar UX en landscape. |
+| **Export a PDF** | Generar informe visual (PDF) preservando modo oscuro | Permitir compartir o archivar el portafolio sin perder el estilo visual. |
+| **Comparación normalizada** | Gráfico comparativo de rendimiento % entre varias monedas del portafolio | Visión consolidada del rendimiento relativo (RF-05). |
+| **Suite de pruebas híbrida** | PHPUnit para infraestructura + plan manual (`docs/TEST_PLAN.md`) para UX | Validar las 3 pruebas del reto de forma automatizable y reproducible. |
+| **HTTPS forzado en producción** | `URL::forceScheme('https')` en `AppServiceProvider` | Railway y CDN sirven por HTTPS; evita mixed content y carga fallida de assets. |
+| **Vite + manifest** | Build de assets con Vite; manifest para resolver rutas en producción | Tailwind y JS compilados; URLs correctas en deploy. |
+
+---
+
+## 4. Objetivo del Proyecto
 
 Aplicación web **single page** que permite:
 
@@ -18,7 +77,7 @@ Tiempo estimado de desarrollo: **5 horas**. Prioridad: claridad y cumplimiento d
 
 ---
 
-## 2. Restricciones y Problema del Historial (Decisión Crítica)
+## 5. Restricciones y Problema del Historial (Decisión Crítica)
 
 ### Limitación de la API
 
@@ -37,7 +96,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 
 ---
 
-## 3. Por qué Laravel actúa como Proxy (Decisión Crítica)
+## 6. Por qué Laravel actúa como Proxy (Decisión Crítica)
 
 1. **CORS**: CoinMarketCap bloquea peticiones directas desde el navegador.
 2. **Seguridad**: La API key no debe aparecer nunca en código frontend.
@@ -48,7 +107,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 
 ---
 
-## 4. Stack Tecnológico
+## 7. Stack Tecnológico
 
 | Capa | Tecnología |
 |------|------------|
@@ -62,7 +121,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 
 ---
 
-## 5. Arquitectura: MVC + Service Pattern
+## 8. Arquitectura: MVC + Service Pattern
 
 ### Responsabilidades
 
@@ -82,7 +141,7 @@ Esta decisión debe quedar reflejada en comentarios del código donde sea releva
 
 ---
 
-## 6. Estructura de Archivos Objetivo
+## 9. Estructura de Archivos Objetivo
 
 ```
 app/
@@ -111,7 +170,7 @@ database/migrations/
 
 ---
 
-## 7. Esquema de Base de Datos
+## 10. Esquema de Base de Datos
 
 ### `cryptocurrencies`
 
@@ -147,7 +206,7 @@ database/migrations/
 
 ---
 
-## 8. Endpoints API Internos
+## 11. Endpoints API Internos
 
 | Método | Ruta | Acción |
 |--------|------|--------|
@@ -169,7 +228,7 @@ Todas las respuestas JSON siguen:
 
 ---
 
-## 9. Flujo de Datos (Single Page)
+## 12. Flujo de Datos (Single Page)
 
 1. **Carga inicial**  
    Navegador → GET `/` → Laravel sirve `app.blade.php` con datos del portafolio desde DB.
@@ -189,7 +248,7 @@ Todas las respuestas JSON siguen:
 
 ---
 
-## 10. Reglas de Código Resumidas
+## 13. Reglas de Código Resumidas
 
 ### PHP / Laravel
 
@@ -225,7 +284,7 @@ Todas las respuestas JSON siguen:
 
 ---
 
-## 11. Prioridades ante Conflictos
+## 14. Prioridades ante Conflictos
 
 1. API key nunca expuesta al cliente.  
 2. Single Page sin recargas (requerimiento explícito).  
@@ -235,7 +294,7 @@ Todas las respuestas JSON siguen:
 
 ---
 
-## 12. Tarea 1 — Punto de Partida
+## 15. Tarea 1 — Punto de Partida
 
 Con este análisis se puede iniciar la **Tarea 1** del proyecto con el siguiente orden sugerido:
 
@@ -264,7 +323,7 @@ Este documento (`ANALISIS.md`) es la referencia para mantener coherencia con las
 
 ---
 
-## 13. Suite de Pruebas (Pruebas del Reto)
+## 16. Suite de Pruebas (Pruebas del Reto)
 
 Se implementó una **suite de pruebas híbrida** para cumplir con el apartado de "Pruebas" del reto:
 
@@ -273,6 +332,6 @@ Se implementó una **suite de pruebas híbrida** para cumplir con el apartado de
    - `tests/Feature/CryptoApiTest.php` valida la estructura de datos retornada por la API.
 
 2. **Plan de pruebas manuales:**  
-   - `docs/TEST_PLAN.md` es una guía paso a paso para que el evaluador valide manualmente la adaptabilidad en distintas resoluciones, la actualización dinámica sin recarga y el trabajo en tiempo real con monedas.
+   - [docs/TEST_PLAN.md](TEST_PLAN.md) es una guía paso a paso para que el evaluador valide manualmente la adaptabilidad en distintas resoluciones, la actualización dinámica sin recarga y el trabajo en tiempo real con monedas.
 
 Ejecución: `php artisan test`
