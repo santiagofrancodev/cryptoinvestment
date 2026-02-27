@@ -93,9 +93,17 @@ Incluye casos para desktop, tablet, móvil portrait/landscape, polling, cambio d
 
 El diagrama de alto nivel del sistema (Client Layer, Backend Layer, Data & External API, patrones implementados) está en:
 
-**[`docs/architecture.drawio`](docs/architecture.drawio)**
+**[`docs/ArchitectureDiagram.drawio.svg`](docs/ArchitectureDiagram.drawio.svg)**
 
-Abre el archivo en [diagrams.net](https://app.diagrams.net/) (Draw.io) para visualizar o editar.
+### Cómo visualizarlo
+
+| Método | Instrucción |
+|--------|-------------|
+| **En el navegador** | Abre el archivo SVG directamente (doble clic o arrástralo a una pestaña). GitHub lo renderiza automáticamente en el repo. |
+| **Editar / exportar** | Ábrelo en [diagrams.net](https://app.diagrams.net/) (Draw.io) → *File → Open from → Device* y selecciona el `.drawio.svg`. |
+| **En VS Code** | Con la extensión "Draw.io Integration" puedes previsualizarlo y editarlo en el editor. |
+
+El formato `.drawio.svg` combina la visualización estándar SVG con los datos editables de Draw.io.
 
 ---
 
@@ -104,7 +112,7 @@ Abre el archivo en [diagrams.net](https://app.diagrams.net/) (Draw.io) para visu
 - **Suite de pruebas híbrida:** Tests automatizados en PHPUnit + plan de pruebas manuales en `docs/TEST_PLAN.md`.
 - **`TechnicalRequirementsTest`:** 4 tests que validan viewport, clases responsivas, lógica de polling y configuración del API.
 - **`withoutVite()` en TestCase:** Permite ejecutar tests sin compilar assets.
-- **Diagrama:** `docs/architecture.drawio` sustituye diagramas previos; `.codeviz` excluido del repo.
+- **Diagrama:** `docs/ArchitectureDiagram.drawio.svg` (solo este; `.codeviz` y diagramas .drawio de prueba excluidos).
 - **ANALISIS.md:** Sección 13 documentando la estrategia de pruebas.
 
 ---
@@ -140,7 +148,7 @@ Para probar los endpoints se puede importar la colección Postman en `docs/postm
 |-----------|-------------|
 | `ANALISIS.md` | Análisis de requisitos, decisiones de arquitectura y reglas de código |
 | `docs/TEST_PLAN.md` | Plan de pruebas manuales para las 3 pruebas del reto |
-| `docs/architecture.drawio` | Diagrama de arquitectura (Draw.io) |
+| `docs/ArchitectureDiagram.drawio.svg` | Diagrama de arquitectura (SVG editable en Draw.io) |
 | `docs/postman_collection.json` | Colección Postman para los endpoints |
 
 ---
