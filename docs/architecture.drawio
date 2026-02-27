@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net">
+  <diagram id="cryptoinvestment-architecture" name="CryptoInvestment Architecture">
+    <mxGraphModel dx="1426" dy="749" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="frontend_group" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F5F5F5;fontStyle=1" value="CLIENT LAYER (SPA)" vertex="1">
+      <mxGeometry height="280" width="220" x="40" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="view_blade" parent="frontend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;fontColor=#FFFFFF;strokeColor=none" value="Blade Template (Single Page)" vertex="1">
+      <mxGeometry height="40" width="180" x="20" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="components" parent="frontend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E91E63;fontColor=#FFFFFF;strokeColor=none" value="Vanilla JS + Fetch API&#xa;Chart.js (Responsive)&#xa;Tailwind CSS (Dark Mode)" vertex="1">
+      <mxGeometry height="60" width="180" x="20" y="100" as="geometry" />
+    </mxCell>
+    <mxCell id="nav_logic" parent="frontend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF4081;fontColor=#FFFFFF;strokeColor=none" value="Conditional Navigation:&#xa;Desktop: Inline View&#xa;Mobile: Modal Landscape" vertex="1">
+      <mxGeometry height="60" width="180" x="20" y="180" as="geometry" />
+    </mxCell>
+    <mxCell id="backend_group" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F5F5F5;fontStyle=1" value="BACKEND LAYER (LARAVEL 12)" vertex="1">
+      <mxGeometry height="440" width="460" x="340" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="controllers" parent="backend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFC107;fontColor=#000000;strokeColor=none" value="Controllers&#xa;(Crypto &amp; Portfolio Controllers)" vertex="1">
+      <mxGeometry height="60" width="180" x="30" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="service_layer" parent="backend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#00BCD4;fontColor=#FFFFFF;strokeColor=none;fontStyle=1" value="Service Layer&#xa;CoinMarketCapService v2" vertex="1">
+      <mxGeometry height="80" width="180" x="30" y="140" as="geometry" />
+    </mxCell>
+    <mxCell id="hybrid_logic" parent="backend_group" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#0097A7;fontColor=#FFFFFF;strokeColor=none" value="Hybrid History Engine:&#xa;1. Attempt CMC v2 API&#xa;2. Fallback to Local Snapshots" vertex="1">
+      <mxGeometry height="80" width="200" x="240" y="140" as="geometry" />
+    </mxCell>
+    <mxCell id="models" parent="backend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#CDDC39;fontColor=#000000;strokeColor=none" value="Eloquent Models&#xa;(Portfolio, PriceSnapshot)" vertex="1">
+      <mxGeometry height="60" width="180" x="30" y="260" as="geometry" />
+    </mxCell>
+    <mxCell id="export_engine" parent="backend_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#607D8B;fontColor=#FFFFFF;strokeColor=none" value="Report Engine (PDF)&#xa;preserving Dark Mode" vertex="1">
+      <mxGeometry height="60" width="180" x="30" y="350" as="geometry" />
+    </mxCell>
+    <mxCell id="data_group" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#F5F5F5;fontStyle=1" value="DATA &amp; EXTERNAL API" vertex="1">
+      <mxGeometry height="440" width="240" x="880" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="mysql" parent="data_group" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FF9800;fontColor=#FFFFFF;strokeColor=none" value="MySQL / SQLite&#xa;Local Snapshots DB" vertex="1">
+      <mxGeometry height="100" width="100" x="70" y="50" as="geometry" />
+    </mxCell>
+    <mxCell id="cmc_v2" parent="data_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9C27B0;fontColor=#FFFFFF;strokeColor=none;fontStyle=1" value="CMC v2 API (PAID)&#xa;Historical Quotes" vertex="1">
+      <mxGeometry height="80" width="180" x="30" y="200" as="geometry" />
+    </mxCell>
+    <mxCell id="railway" parent="data_group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#000000;fontColor=#FFFFFF;strokeColor=none" value="Deployment: RAILWAY&#xa;Nixpacks + HTTPS Force" vertex="1">
+      <mxGeometry height="70" width="180" x="30" y="330" as="geometry" />
+    </mxCell>
+    <mxCell id="patterns_group" parent="1" style="swimlane;whiteSpace=wrap;html=1;fillColor=#E1F5FE;fontStyle=1" value="IMPLEMENTED PATTERNS" vertex="1">
+      <mxGeometry height="100" width="1080" x="40" y="520" as="geometry" />
+    </mxCell>
+    <mxCell id="p1" parent="patterns_group" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" value="Service Layer Pattern" vertex="1">
+      <mxGeometry height="30" width="150" x="20" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p2" parent="patterns_group" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" value="Hybrid Strategy (API + DB)" vertex="1">
+      <mxGeometry height="30" width="180" x="200" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p3" parent="patterns_group" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" value="Snapshot Pattern" vertex="1">
+      <mxGeometry height="30" width="130" x="420" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p4" parent="patterns_group" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" value="Adaptive UI (Viewport-Based)" vertex="1">
+      <mxGeometry height="30" width="200" x="580" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="p5" parent="patterns_group" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1" value="Normalized % Comparison" vertex="1">
+      <mxGeometry height="30" width="190" x="810" y="40" as="geometry" />
+    </mxCell>
+    <mxCell id="c1" edge="1" parent="1" source="frontend_group" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="controllers" value="AJAX / JSON">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="c2" edge="1" parent="1" source="controllers" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="service_layer" value="Logic Delegation">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="c3" edge="1" parent="1" source="service_layer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="cmc_v2" value="Fetch Historical">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="c4" edge="1" parent="1" source="models" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="mysql" value="ORM / Persistence">
+      <mxGeometry relative="1" x="-0.7778" y="10" as="geometry">
+        <mxPoint as="offset" />
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>
+  </diagram>
+</mxfile>

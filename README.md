@@ -10,6 +10,7 @@ Aplicación web **single page** para seguir un portafolio de criptomonedas: coti
 
 - PHP 8.2+
 - Composer
+- Node.js 20+ (para compilar assets con Vite)
 - Extensiones PHP: pdo_sqlite (o MySQL), json, mbstring, openssl
 - Cuenta en [CoinMarketCap](https://coinmarketcap.com/api/) (plan gratuito) para obtener `COINMARKETCAP_API_KEY`
 
@@ -22,6 +23,7 @@ Aplicación web **single page** para seguir un portafolio de criptomonedas: coti
    git clone <repo>
    cd cryptoinvestment
    composer install
+   npm install
    ```
 
 2. **Entorno**
@@ -45,11 +47,65 @@ Aplicación web **single page** para seguir un portafolio de criptomonedas: coti
    ```
    Opcional: `php artisan crypto:fetch-global --limit=200`
 
-5. **Servidor**
+5. **Assets (Vite)**
+   ```bash
+   npm run build
+   ```
+   Para desarrollo con hot reload: `npm run dev`
+
+6. **Servidor**
    ```bash
    php artisan serve
    ```
    Abrir `http://localhost:8000`.
+
+---
+
+## Pruebas
+
+### Tests automatizados (PHPUnit)
+
+```bash
+php artisan test
+```
+
+Incluye:
+
+| Archivo | Descripción |
+|---------|-------------|
+| `tests/Feature/TechnicalRequirementsTest.php` | Valida las 3 pruebas del reto: adaptabilidad (viewport, clases responsive), actualización dinámica (setInterval, fetchData), trabajo en tiempo real (endpoint `/api/crypto/data`, `CoinMarketCapService`) |
+| `tests/Feature/CryptoApiTest.php` | Valida estructura JSON de la API |
+| `tests/Feature/ExampleTest.php` | Smoke test: respuesta 200 en `/` |
+
+**Nota:** Los tests usan `withoutVite()`, por lo que no requieren compilar assets previamente.
+
+### Checklist manual (QA)
+
+Para validar manualmente las 3 pruebas del reto (adaptabilidad, actualización dinámica, tiempo real), sigue la guía paso a paso en:
+
+**[`docs/TEST_PLAN.md`](docs/TEST_PLAN.md)**
+
+Incluye casos para desktop, tablet, móvil portrait/landscape, polling, cambio de rango del gráfico y verificación de snapshots en base de datos.
+
+---
+
+## Diagrama de arquitectura
+
+El diagrama de alto nivel del sistema (Client Layer, Backend Layer, Data & External API, patrones implementados) está en:
+
+**[`docs/architecture.drawio`](docs/architecture.drawio)**
+
+Abre el archivo en [diagrams.net](https://app.diagrams.net/) (Draw.io) para visualizar o editar.
+
+---
+
+## Cambios recientes (Refactor de Pruebas)
+
+- **Suite de pruebas híbrida:** Tests automatizados en PHPUnit + plan de pruebas manuales en `docs/TEST_PLAN.md`.
+- **`TechnicalRequirementsTest`:** 4 tests que validan viewport, clases responsivas, lógica de polling y configuración del API.
+- **`withoutVite()` en TestCase:** Permite ejecutar tests sin compilar assets.
+- **Diagrama:** `docs/architecture.drawio` sustituye diagramas previos; `.codeviz` excluido del repo.
+- **ANALISIS.md:** Sección 13 documentando la estrategia de pruebas.
 
 ---
 
@@ -71,33 +127,21 @@ Se trabaja en ramas de feature y se hace merge a `main` cuando la funcionalidad 
 | POST | `/api/portfolio` | Añadir crypto al portafolio (body: `cryptocurrency_id`) |
 | DELETE | `/api/portfolio/{id}` | Quitar del portafolio por ID de entrada |
 | GET | `/api/crypto/history/{cmc_id}?from=&to=` | Historial de precios (snapshots) por rango de fechas |
+| GET | `/api/crypto/history-bulk?ids=&from=&to=` | Historial bulk para comparar varias monedas |
 
 Todas las respuestas JSON siguen: `success`, `data`, `message` (opcional).  
 Para probar los endpoints se puede importar la colección Postman en `docs/postman_collection.json`.
 
 ---
 
-## Checklist de pruebas
-
-- **Adaptabilidad (responsive)**: La interfaz se probó en móvil, tablet y escritorio; la tabla y el gráfico se adaptan al viewport.
-- **Tiempo real (polling)**: Se verificó que el frontend actualiza las cotizaciones periódicamente (polling cada 60 s) sin recargar la página.
-
----
-
-## Tests
-
-```bash
-php artisan test
-```
-
-Incluye un test de feature que comprueba que `GET /api/crypto/data` responde 200 y devuelve la estructura JSON correcta (`success`, `data`). Ver `tests/Feature/CryptoApiTest.php`.
-
----
-
 ## Documentación adicional
 
-- **Análisis y decisiones**: `ANALISIS.md`
-- **Colección Postman**: `docs/postman_collection.json`
+| Documento | Descripción |
+|-----------|-------------|
+| `ANALISIS.md` | Análisis de requisitos, decisiones de arquitectura y reglas de código |
+| `docs/TEST_PLAN.md` | Plan de pruebas manuales para las 3 pruebas del reto |
+| `docs/architecture.drawio` | Diagrama de arquitectura (Draw.io) |
+| `docs/postman_collection.json` | Colección Postman para los endpoints |
 
 ---
 
